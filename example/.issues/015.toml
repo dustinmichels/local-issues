@@ -1,8 +1,8 @@
 [issue]
 id = 15
 title = "Lazy-Loaded Background Modal (Instant)"
-status = "open"                           # [open, in-progress, done]
-assigned_to = ""                          # [claude, antigravity, ""]
+status = "open" # [open, in-progress, done]
+assigned_to = "" # [claude, antigravity, ""]
 created_at = 2026-06-10
 completed_at = ""
 
