@@ -1,0 +1,17 @@
+[issue]
+id = 1
+title = "Do something"
+status = "open" # [open, in-progress, done]
+assigned_to = "" # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = ""
+
+[details]
+description = """
+Fix important stuff
+"""
+
+[tasks]
+
+[resolution]
+notes = ""

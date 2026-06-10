@@ -1,0 +1,6 @@
+.issues/
+
+/local-issues
+/web/node_modules
+/web/dist/*
+!/web/dist/.gitkeep
