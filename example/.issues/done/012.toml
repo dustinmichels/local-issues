@@ -1,0 +1,22 @@
+[issue]
+id = 12
+title = "Fix Typo Filenames and Schema Names"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+sections/custome-collection.liquid and its schema name "Custome Collection"
+contained a typo, along with related references throughout templates and
+style.css.
+"""
+
+[tasks]
+"Rename sections/custome-collection.liquid to sections/custom-collection.liquid" = true
+"Update its internal JSON schema name from 'Custome Collection' to 'Custom Collection'" = true
+"Correct all references to custome-collection in templates and style.css" = true
+
+[resolution]
+notes = ""

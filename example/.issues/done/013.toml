@@ -1,0 +1,19 @@
+[issue]
+id = 13
+title = "Fix CSS Typos"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+The class name `.sec-collcetion-section` contained a typo throughout
+assets/style.css and custom sections.
+"""
+
+[tasks]
+"Correct .sec-collcetion-section to .sec-collection-section in assets/style.css and all custom sections" = true
+
+[resolution]
+notes = ""

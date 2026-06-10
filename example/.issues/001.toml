@@ -1,0 +1,20 @@
+[issue]
+id = 1
+title = "Example issue"
+status = "open"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = ""
+
+[details]
+description = """
+Example issue. Do not delete.
+"""
+
+[tasks]
+"subtask 1" = false
+"subtask 2" = false
+"subtask 3" = false
+
+[resolution]
+notes = ""

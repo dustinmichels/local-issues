@@ -1,0 +1,22 @@
+[issue]
+id = 5
+title = "Merge Duplicate Service Row Sections"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+sections/first-row.liquid, sec-row.liquid, thd-row.liquid, and four-row.liquid
+were near-duplicate "service row" sections. Merged into a single reusable
+services-grid.liquid section.
+"""
+
+[tasks]
+"Create a single reusable section named services-grid.liquid with settings to control wrapper CSS classes, grid layout (column count), background color, and card loops" = true
+"Delete the duplicate section files: sections/first-row.liquid, sections/sec-row.liquid, sections/thd-row.liquid, sections/four-row.liquid" = true
+"Update any JSON templates referencing the old sections to point to the new consolidated section" = true
+
+[resolution]
+notes = ""

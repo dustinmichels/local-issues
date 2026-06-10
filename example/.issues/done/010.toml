@@ -1,0 +1,21 @@
+[issue]
+id = 10
+title = "Eliminate Manual CSS Class Inputs"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+Several sections asked merchants for free-text CSS class name settings
+(e.g. main-class, google-section-id), making styling fragile and dependent
+on manual merchant input.
+"""
+
+[tasks]
+"Remove merchant text input settings for CSS class names (main-class, google-section-id) from sections/custome-collection.liquid, sections/we-are.liquid, and sections/google-map.liquid (first-row.liquid already removed via Section Consolidation)" = true
+"Update HTML templates so that styling does not depend on these manual class inputs" = true
+
+[resolution]
+notes = ""

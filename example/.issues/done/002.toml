@@ -1,0 +1,23 @@
+[issue]
+id = 2
+title = "Consolidate Calendly Loading"
+status = "done"                        # [open, in-progress, done]
+assigned_to = ""                       # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+Calendly's widget script/stylesheet were being loaded multiple times across
+the theme (globally and inline within templates/sections), and the booking
+URL setting required merchants to paste raw widget HTML. Consolidate to a
+single global load and a structured setting.
+"""
+
+[tasks]
+"Remove the duplicate Calendly script/stylesheet import in layout/theme.liquid (currently imported twice)" = true
+"Remove inline <script> tags referencing widget.js and <link> tags referencing widget.css from custom Liquid code (e.g. page.repair.json, main-product.liquid); load once globally" = true
+"Replace the html setting type for the booking URL with a structured text setting and write the widget container HTML dynamically in Liquid" = true
+
+[resolution]
+notes = ""

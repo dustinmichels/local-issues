@@ -1,0 +1,20 @@
+[issue]
+id = 14
+title = "Implement Responsive Image Tags"
+status = "open"                           # [open, in-progress, done]
+assigned_to = ""                          # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = ""
+
+[details]
+description = """
+Custom sections use static <img src="{{ ... | image_url: width: 800 }}">
+markup instead of Shopify's image_tag filter, missing auto-generated
+srcset/sizes attributes and lazy loading.
+"""
+
+[tasks]
+"Replace static image markup in custom sections with Shopify's image_tag filter (e.g. {{ block.settings.image | image_url: width: 800 | image_tag: loading: 'lazy', class: 'custom-image-class' }}) for responsive scaling and lazy loading" = false
+
+[resolution]
+notes = ""

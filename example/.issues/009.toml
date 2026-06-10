@@ -1,0 +1,26 @@
+[issue]
+id = 9
+title = "Fix Relative Font Asset URLs"
+status = "open"                        # [open, in-progress, done]
+assigned_to = ""                       # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = ""
+
+[details]
+description = """
+Custom font files (e.g. Lexend-Regular.woff2) currently live in the Shopify
+Files CDN (cdn.shopify.com/s/files/...) and assets/style.css references them
+via absolute store URLs. They need to be moved into the theme's assets/
+folder and referenced via Liquid filters instead.
+
+Note: Font files need to be manually downloaded and uploaded to the theme's
+assets/ folder, then style.css renamed to style.css.liquid so Liquid filters
+work.
+"""
+
+[tasks]
+"Move custom font files (e.g. Lexend-Regular.woff2) into the theme's assets/ folder" = false
+"In assets/style.css, reference fonts using Liquid filters instead of absolute store URLs (e.g. url(\"{{ 'Lexend-Regular.woff2' | asset_url }}\"))" = false
+
+[resolution]
+notes = ""

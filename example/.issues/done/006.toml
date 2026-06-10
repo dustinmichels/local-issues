@@ -1,0 +1,21 @@
+[issue]
+id = 6
+title = "Remove Heavy Overrides"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+assets/style.css contained !important blocks that locked visual colors and
+layouts, plus hardcoded background colors, paddings, and font choices that
+bypassed Dawn's design tokens, breaking the Theme Settings Editor.
+"""
+
+[tasks]
+"Inspect assets/style.css and eliminate !important blocks that lock visual colors and layouts" = true
+"Replace hardcoded background colors, paddings, and font choices with CSS variables referencing Dawn's design tokens (e.g. --color-background, --font-heading-family) so the Theme Settings Editor functions correctly" = true
+
+[resolution]
+notes = ""

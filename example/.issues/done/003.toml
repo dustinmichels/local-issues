@@ -1,0 +1,24 @@
+[issue]
+id = 3
+title = "Consolidate jQuery & Slick Carousel Loading"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+jQuery and Slick Carousel were loaded redundantly (inline CDN imports in
+sections/related-products.liquid plus a jQuery.getScript() wrapper in
+assets/custom.js), with inconsistent async/defer usage. Standardized to a
+single load path.
+"""
+
+[tasks]
+"Remove inline jQuery (3.6.0) and Slick Carousel (1.8.1) CDN imports from sections/related-products.liquid" = true
+"Remove the redundant jQuery.getScript() wrapper in assets/custom.js" = true
+"Standardize to a single Slick version loaded through a single route; ensure jQuery is not loaded async while dependent scripts use defer" = true
+"Alternative (highly recommended): replace jQuery + Slick Carousel with a zero-dependency slider library like Splide, or migrate to Dawn's native CSS-based <slider-component>" = false
+
+[resolution]
+notes = "Core consolidation/dedupe of jQuery and Slick is complete. The recommended longer-term replacement of jQuery/Slick with Splide or Dawn's native slider-component remains a follow-up."

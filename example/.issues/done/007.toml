@@ -1,0 +1,20 @@
+[issue]
+id = 7
+title = "Connect Typography to Theme Customizer"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+Section files hardcoded references to the 'Lexend' and 'Instrument Sans'
+fonts, preventing merchants from changing typography via the Theme
+Customizer.
+"""
+
+[tasks]
+"Replace hardcoded references to 'Lexend' and 'Instrument Sans' in section files with var(--font-heading-family) for headings and var(--font-body-family) for body copy" = true
+
+[resolution]
+notes = ""

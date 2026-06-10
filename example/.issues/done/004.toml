@@ -1,0 +1,20 @@
+[issue]
+id = 4
+title = "Clean Up DOM-Hidden Elements"
+status = "done"         # [open, in-progress, done]
+assigned_to = ""        # [claude, antigravity, ""]
+created_at = 2026-06-10
+completed_at = 2026-06-10
+
+[details]
+description = """
+Search elements in sections/header.liquid were hidden via
+`.header__search { display: none !important; }` in style.css instead of
+being removed, cluttering the accessibility tree.
+"""
+
+[tasks]
+"Remove search elements from sections/header.liquid instead of hiding them via .header__search { display: none !important; } in style.css" = true
+
+[resolution]
+notes = ""
