@@ -1,39 +1,65 @@
 // Package server provides the local-issues HTTP server, which serves the
-// embedded frontend and a JSON API for listing issues.
+// embedded frontend and a JSON API for listing and creating issues.
 package server
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/labstack/echo/v5"
 
 	"github.com/dustinmichels/local-issues/internal/issue"
 	"github.com/dustinmichels/local-issues/web"
 )
 
-// New builds an http.Handler that serves the embedded frontend and an
-// /api/issues endpoint backed by the issues in issuesDir.
+// createIssueRequest is the JSON body accepted by POST /api/issues.
+type createIssueRequest struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Subtasks    []string `json:"subtasks"`
+}
+
+// New builds an http.Handler that serves the embedded frontend and a JSON
+// API for listing and creating issues in issuesDir.
 func New(issuesDir string) (http.Handler, error) {
 	dist, err := web.Dist()
 	if err != nil {
 		return nil, err
 	}
 
-	mux := http.NewServeMux()
+	e := echo.New()
 
-	mux.HandleFunc("GET /api/issues", func(w http.ResponseWriter, r *http.Request) {
+	e.GET("/api/issues", func(c *echo.Context) error {
 		summaries, err := issue.List(issuesDir)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(summaries); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		return c.JSON(http.StatusOK, summaries)
 	})
 
-	mux.Handle("/", http.FileServerFS(dist))
+	e.POST("/api/issues", func(c *echo.Context) error {
+		var req createIssueRequest
+		if err := c.Bind(&req); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 
-	return mux, nil
+		path, err := issue.Create(issue.NewInput{
+			Title:       req.Title,
+			Description: req.Description,
+			Subtasks:    req.Subtasks,
+		})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+
+		summary, err := issue.LoadSummary(path)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+
+		return c.JSON(http.StatusCreated, summary)
+	})
+
+	e.StaticFS("/", dist)
+
+	return e, nil
 }

@@ -8,6 +8,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/BurntSushi/toml"
 )
 
 const (
@@ -122,6 +125,98 @@ func Create(input NewInput) (string, error) {
 	}
 
 	return path, nil
+}
+
+// Finish marks the issue with the given id as done, records the
+// resolution notes and completion time, and moves its file into the
+// done subdirectory of issuesDir. It returns the path of the moved file.
+func Finish(issuesDir string, id int, notes string) (string, error) {
+	srcPath := filepath.Join(issuesDir, FileName(id))
+
+	if _, err := os.Stat(srcPath); err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("issue %d not found", id)
+		}
+		return "", fmt.Errorf("checking %s: %w", srcPath, err)
+	}
+
+	var doc document
+	if _, err := toml.DecodeFile(srcPath, &doc); err != nil {
+		return "", fmt.Errorf("decoding %s: %w", srcPath, err)
+	}
+
+	doc.Issue.Status = "done"
+	doc.Issue.CompletedAt = time.Now().Truncate(time.Second)
+	doc.Resolution.Notes = strings.TrimSpace(notes)
+
+	var b strings.Builder
+	enc := toml.NewEncoder(&b)
+	enc.Indent = ""
+	if err := enc.Encode(doc); err != nil {
+		return "", fmt.Errorf("encoding issue %d: %w", id, err)
+	}
+
+	doneDir := filepath.Join(issuesDir, DoneDirName)
+	if err := os.MkdirAll(doneDir, 0o755); err != nil {
+		return "", fmt.Errorf("creating %s: %w", doneDir, err)
+	}
+
+	destPath := filepath.Join(doneDir, FileName(id))
+	if err := os.WriteFile(destPath, []byte(b.String()), 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", destPath, err)
+	}
+
+	if err := os.Remove(srcPath); err != nil {
+		return "", fmt.Errorf("removing %s: %w", srcPath, err)
+	}
+
+	return destPath, nil
+}
+
+// Cleanup moves any issue files directly in issuesDir whose status is
+// "done" into the done subdirectory. It returns the destination paths of
+// the moved files, sorted by ID ascending.
+func Cleanup(issuesDir string) ([]string, error) {
+	entries, err := os.ReadDir(issuesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading %s: %w", issuesDir, err)
+	}
+
+	doneDir := filepath.Join(issuesDir, DoneDirName)
+
+	var moved []string
+	for _, entry := range entries {
+		if entry.IsDir() || !idFilePattern.MatchString(entry.Name()) {
+			continue
+		}
+
+		srcPath := filepath.Join(issuesDir, entry.Name())
+		summary, err := LoadSummary(srcPath)
+		if err != nil {
+			return nil, err
+		}
+		if summary.Status != "done" {
+			continue
+		}
+
+		if err := os.MkdirAll(doneDir, 0o755); err != nil {
+			return nil, fmt.Errorf("creating %s: %w", doneDir, err)
+		}
+
+		destPath := filepath.Join(doneDir, entry.Name())
+		if err := os.Rename(srcPath, destPath); err != nil {
+			return nil, fmt.Errorf("moving %s: %w", srcPath, err)
+		}
+
+		moved = append(moved, destPath)
+	}
+
+	sort.Strings(moved)
+
+	return moved, nil
 }
 
 // List returns a summary of every issue in issuesDir and its done

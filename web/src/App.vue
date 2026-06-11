@@ -1,8 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import NewIssueModal from "./components/NewIssueModal.vue";
 
 const issues = ref([]);
 const error = ref(null);
+const showNewIssueModal = ref(false);
 
 const columns = [
   { status: "open", label: "Open", accent: "border-t-blue-400", badge: "bg-blue-100 text-blue-800" },
@@ -27,6 +29,11 @@ onMounted(async () => {
     error.value = e.message;
   }
 });
+
+function onIssueCreated(issue) {
+  issues.value.push(issue);
+  showNewIssueModal.value = false;
+}
 </script>
 
 <template>
@@ -46,9 +53,19 @@ onMounted(async () => {
           <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">
             {{ col.label }}
           </h2>
-          <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="col.badge">
-            {{ issuesByStatus[col.status].length }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="col.badge">
+              {{ issuesByStatus[col.status].length }}
+            </span>
+            <button
+              v-if="col.status === 'open'"
+              type="button"
+              class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+              @click="showNewIssueModal = true"
+            >
+              + Add
+            </button>
+          </div>
         </header>
 
         <div class="flex flex-col gap-3 px-3 pb-3">
@@ -70,5 +87,11 @@ onMounted(async () => {
         </div>
       </section>
     </div>
+
+    <NewIssueModal
+      v-if="showNewIssueModal"
+      @close="showNewIssueModal = false"
+      @created="onIssueCreated"
+    />
   </main>
 </template>

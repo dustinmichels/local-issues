@@ -14,7 +14,7 @@ on click rather than loading the widget on demand.
 """
 
 [subtasks]
-"Implement Option A: create a hidden modal element on the page and initialize Calendly as an inline widget inside it (lazy-loaded after page load or on first user scroll)" = false
+"Create a hidden modal element on the page and initialize Calendly as an inline widget inside it (lazy-loaded after page load or on first user scroll)" = false
 "Replace default Calendly click handlers with a toggle to show/hide this hidden modal, providing an instant popup experience" = false
 
 [resolution]
