@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os/exec"
+	"os/signal"
 	"runtime"
+	"syscall"
+	"time"
 
 	"github.com/dustinmichels/local-issues/internal/issue"
 	"github.com/dustinmichels/local-issues/internal/server"
@@ -33,7 +37,37 @@ var serveCmd = &cobra.Command{
 		fmt.Fprintf(cmd.OutOrStdout(), "Serving issues from %s at %s\n", issuesDir, url)
 		openBrowser(url)
 
-		return http.ListenAndServe(addr, handler)
+		srv := &http.Server{Addr: addr, Handler: handler}
+
+		ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+
+		serveErr := make(chan error, 1)
+		go func() {
+			serveErr <- srv.ListenAndServe()
+		}()
+
+		select {
+		case err := <-serveErr:
+			if err != nil && err != http.ErrServerClosed {
+				return err
+			}
+			return nil
+		case <-ctx.Done():
+		}
+
+		fmt.Fprintln(cmd.OutOrStdout(), "\nShutting down, moving done issues into done/...")
+		moved, err := issue.Cleanup(issuesDir)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "cleanup failed: %v\n", err)
+		}
+		for _, path := range moved {
+			fmt.Fprintf(cmd.OutOrStdout(), "Moved %s\n", path)
+		}
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return srv.Shutdown(shutdownCtx)
 	},
 }
 

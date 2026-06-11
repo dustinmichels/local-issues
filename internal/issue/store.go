@@ -190,22 +190,134 @@ func Create(input NewInput) (string, error) {
 	return path, nil
 }
 
+// findIssuePath returns the path of the issue file with the given id,
+// checking issuesDir and its done subdirectory for "<id>.toml". It
+// returns an error if no issue with that id exists.
+func findIssuePath(issuesDir string, id int) (string, error) {
+	for _, dir := range []string{issuesDir, filepath.Join(issuesDir, DoneDirName)} {
+		path := filepath.Join(dir, FileName(id))
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("checking %s: %w", path, err)
+		}
+	}
+
+	return "", fmt.Errorf("issue %d not found: %w", id, ErrNotFound)
+}
+
+// writeDocument encodes doc as TOML and writes it to path.
+func writeDocument(path string, doc document) error {
+	var b strings.Builder
+	enc := toml.NewEncoder(&b)
+	enc.Indent = ""
+	if err := enc.Encode(doc); err != nil {
+		return fmt.Errorf("encoding %s: %w", path, err)
+	}
+
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+
+	return nil
+}
+
 // Get loads the full detail of the issue with the given id, checking
 // issuesDir and its done subdirectory for "<id>.toml". It returns an
 // error if no issue with that id exists.
 func Get(issuesDir string, id int) (Detail, error) {
-	for _, dir := range []string{issuesDir, filepath.Join(issuesDir, DoneDirName)} {
-		path := filepath.Join(dir, FileName(id))
-		if _, err := os.Stat(path); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return Detail{}, fmt.Errorf("checking %s: %w", path, err)
-		}
-		return LoadDetail(path)
+	path, err := findIssuePath(issuesDir, id)
+	if err != nil {
+		return Detail{}, err
+	}
+	return LoadDetail(path)
+}
+
+// UpdateStatus sets the status of the issue with the given id, updating
+// completed_at accordingly, and rewrites its file in place without moving
+// it. It returns the issue's updated summary.
+func UpdateStatus(issuesDir string, id int, status string) (Summary, error) {
+	if !validStatuses[status] {
+		return Summary{}, fmt.Errorf("invalid status %q", status)
 	}
 
-	return Detail{}, fmt.Errorf("issue %d not found", id)
+	path, err := findIssuePath(issuesDir, id)
+	if err != nil {
+		return Summary{}, err
+	}
+
+	var doc document
+	if _, err := toml.DecodeFile(path, &doc); err != nil {
+		return Summary{}, fmt.Errorf("decoding %s: %w", path, err)
+	}
+
+	doc.Issue.Status = status
+	if status == "done" {
+		if doc.Issue.CompletedAt.IsZero() {
+			doc.Issue.CompletedAt = time.Now().Truncate(time.Second)
+		}
+	} else {
+		doc.Issue.CompletedAt = time.Time{}
+	}
+
+	if err := writeDocument(path, doc); err != nil {
+		return Summary{}, err
+	}
+
+	return LoadSummary(path)
+}
+
+// Update applies the given edits to the issue with the given id and
+// rewrites its file in place without moving it. It returns the issue's
+// updated detail.
+func Update(issuesDir string, id int, input UpdateInput) (Detail, error) {
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		return Detail{}, fmt.Errorf("title is required")
+	}
+	if !validStatuses[input.Status] {
+		return Detail{}, fmt.Errorf("invalid status %q", input.Status)
+	}
+
+	path, err := findIssuePath(issuesDir, id)
+	if err != nil {
+		return Detail{}, err
+	}
+
+	var doc document
+	if _, err := toml.DecodeFile(path, &doc); err != nil {
+		return Detail{}, fmt.Errorf("decoding %s: %w", path, err)
+	}
+
+	if doc.Issue.Status != input.Status {
+		if input.Status == "done" {
+			doc.Issue.CompletedAt = time.Now().Truncate(time.Second)
+		} else {
+			doc.Issue.CompletedAt = time.Time{}
+		}
+	}
+
+	doc.Issue.Title = title
+	doc.Issue.Status = input.Status
+	doc.Issue.AssignedTo = strings.TrimSpace(input.AssignedTo)
+	doc.Details.Description = strings.TrimSpace(input.Description)
+	doc.Resolution.Notes = strings.TrimSpace(input.ResolutionNotes)
+
+	subtasks := make(map[string]bool, len(input.Subtasks))
+	for _, s := range input.Subtasks {
+		text := strings.TrimSpace(s.Text)
+		if text == "" {
+			continue
+		}
+		subtasks[text] = s.Done
+	}
+	doc.Subtasks = subtasks
+
+	if err := writeDocument(path, doc); err != nil {
+		return Detail{}, err
+	}
+
+	return LoadDetail(path)
 }
 
 // Finish marks the issue with the given id as done, records the
@@ -230,21 +342,14 @@ func Finish(issuesDir string, id int, notes string) (string, error) {
 	doc.Issue.CompletedAt = time.Now().Truncate(time.Second)
 	doc.Resolution.Notes = strings.TrimSpace(notes)
 
-	var b strings.Builder
-	enc := toml.NewEncoder(&b)
-	enc.Indent = ""
-	if err := enc.Encode(doc); err != nil {
-		return "", fmt.Errorf("encoding issue %d: %w", id, err)
-	}
-
 	doneDir := filepath.Join(issuesDir, DoneDirName)
 	if err := os.MkdirAll(doneDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating %s: %w", doneDir, err)
 	}
 
 	destPath := filepath.Join(doneDir, FileName(id))
-	if err := os.WriteFile(destPath, []byte(b.String()), 0o644); err != nil {
-		return "", fmt.Errorf("writing %s: %w", destPath, err)
+	if err := writeDocument(destPath, doc); err != nil {
+		return "", err
 	}
 
 	if err := os.Remove(srcPath); err != nil {

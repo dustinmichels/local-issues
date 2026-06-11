@@ -494,6 +494,257 @@ func TestCreateRequiresTitle(t *testing.T) {
 	}
 }
 
+func TestUpdateStatus(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	summary, err := UpdateStatus(issuesDir, 1, "in-progress")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Status != "in-progress" {
+		t.Errorf("UpdateStatus() Status = %q, want %q", summary.Status, "in-progress")
+	}
+	if summary.CompletedAt != nil {
+		t.Errorf("UpdateStatus() CompletedAt = %v, want nil", summary.CompletedAt)
+	}
+
+	path := filepath.Join(issuesDir, FileName(1))
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("expected issue to remain at %s: %v", path, err)
+	}
+
+	summary, err = UpdateStatus(issuesDir, 1, "done")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Status != "done" {
+		t.Errorf("UpdateStatus() Status = %q, want %q", summary.Status, "done")
+	}
+	if summary.CompletedAt == nil {
+		t.Error("UpdateStatus() CompletedAt = nil, want non-nil")
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("expected issue to remain at %s without being moved: %v", path, err)
+	}
+}
+
+func TestUpdateStatusFromDoneClearsCompletedAt(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Finish(issuesDir, 1, "done"); err != nil {
+		t.Fatal(err)
+	}
+
+	summary, err := UpdateStatus(issuesDir, 1, "open")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Status != "open" {
+		t.Errorf("UpdateStatus() Status = %q, want %q", summary.Status, "open")
+	}
+	if summary.CompletedAt != nil {
+		t.Errorf("UpdateStatus() CompletedAt = %v, want nil", summary.CompletedAt)
+	}
+
+	path := filepath.Join(issuesDir, DoneDirName, FileName(1))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "completed_at") {
+		t.Errorf("expected completed_at to be cleared:\n%s", data)
+	}
+}
+
+func TestUpdateStatusInvalid(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := UpdateStatus(issuesDir, 1, "bogus"); err == nil {
+		t.Error("expected error for invalid status, got nil")
+	}
+}
+
+func TestUpdateStatusMissingIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := UpdateStatus(issuesDir, 1, "open"); err == nil {
+		t.Error("expected error for missing issue, got nil")
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{
+		Title:       "Fix bug",
+		Description: "Something is broken",
+		Subtasks:    []string{"step one"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	detail, err := Update(issuesDir, 1, UpdateInput{
+		Title:       "Fix the bug",
+		Description: "Updated description",
+		Status:      "in-progress",
+		AssignedTo:  "dustin",
+		Subtasks: []Subtask{
+			{Text: "step one", Done: true},
+			{Text: "step two", Done: false},
+		},
+		ResolutionNotes: "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if detail.Title != "Fix the bug" || detail.Description != "Updated description" ||
+		detail.Status != "in-progress" || detail.AssignedTo != "dustin" {
+		t.Errorf("Update() = %+v, unexpected fields", detail)
+	}
+
+	wantSubtasks := map[string]bool{"step one": true, "step two": false}
+	if len(detail.Subtasks) != len(wantSubtasks) {
+		t.Fatalf("Update() Subtasks = %+v, want %d entries", detail.Subtasks, len(wantSubtasks))
+	}
+	for _, s := range detail.Subtasks {
+		if want, ok := wantSubtasks[s.Text]; !ok || want != s.Done {
+			t.Errorf("Update() Subtask %+v, want done=%v", s, want)
+		}
+	}
+
+	path := filepath.Join(issuesDir, FileName(1))
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("expected issue to remain at %s: %v", path, err)
+	}
+
+	// Marking the issue done via Update should set completed_at, even
+	// though the file isn't moved into done/.
+	detail, err = Update(issuesDir, 1, UpdateInput{
+		Title:           "Fix the bug",
+		Description:     "Updated description",
+		Status:          "done",
+		AssignedTo:      "dustin",
+		Subtasks:        []Subtask{{Text: "step one", Done: true}},
+		ResolutionNotes: "Fixed it",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Status != "done" || detail.ResolutionNotes != "Fixed it" {
+		t.Errorf("Update() = %+v, unexpected fields", detail)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "completed_at = ") {
+		t.Errorf("expected completed_at to be set:\n%s", data)
+	}
+}
+
+func TestUpdateRequiresTitle(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Update(issuesDir, 1, UpdateInput{Title: "  ", Status: "open"}); err == nil {
+		t.Error("expected error for blank title, got nil")
+	}
+}
+
+func TestUpdateInvalidStatus(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Update(issuesDir, 1, UpdateInput{Title: "Fix bug", Status: "bogus"}); err == nil {
+		t.Error("expected error for invalid status, got nil")
+	}
+}
+
+func TestUpdateMissingIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Update(issuesDir, 1, UpdateInput{Title: "Fix bug", Status: "open"}); err == nil {
+		t.Error("expected error for missing issue, got nil")
+	}
+}
+
 // chdir changes the working directory to dir for the duration of the test
 // and returns a function that restores the original directory.
 func chdir(t *testing.T, dir string) func() {

@@ -1,15 +1,22 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import NewIssueModal from "./components/NewIssueModal.vue";
+import EditIssueModal from "./components/EditIssueModal.vue";
 
 const issues = ref([]);
 const error = ref(null);
+const actionError = ref(null);
 const showNewIssueModal = ref(false);
+const editingIssueId = ref(null);
+const frozen = ref(false);
 
 const expandedId = ref(null);
 const subtasksById = ref({});
 const subtasksLoadingId = ref(null);
 const subtasksErrorById = ref({});
+
+const draggedId = ref(null);
+const dragOverStatus = ref(null);
 
 const columns = [
   { status: "open", label: "Open", accent: "border-t-blue-400", badge: "bg-blue-100 text-blue-800" },
@@ -25,11 +32,15 @@ const issuesByStatus = computed(() => {
   return groups;
 });
 
+async function reloadIssues() {
+  const res = await fetch("/api/issues");
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  issues.value = await res.json();
+}
+
 onMounted(async () => {
   try {
-    const res = await fetch("/api/issues");
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    issues.value = await res.json();
+    await reloadIssues();
   } catch (e) {
     error.value = e.message;
   }
@@ -45,6 +56,8 @@ function formatDate(value) {
 }
 
 async function toggleExpanded(id) {
+  if (frozen.value) return;
+
   if (expandedId.value === id) {
     expandedId.value = null;
     return;
@@ -65,6 +78,79 @@ async function toggleExpanded(id) {
     subtasksLoadingId.value = null;
   }
 }
+
+function openEdit(issue) {
+  if (frozen.value) return;
+  editingIssueId.value = issue.id;
+}
+
+function closeEdit() {
+  editingIssueId.value = null;
+}
+
+async function onIssueUpdated() {
+  editingIssueId.value = null;
+  // Subtasks may have changed; drop the cache so a re-expand refetches.
+  subtasksById.value = {};
+  expandedId.value = null;
+
+  try {
+    await reloadIssues();
+  } catch (e) {
+    actionError.value = e.message;
+  }
+}
+
+function onDragStart(event, issue) {
+  if (frozen.value) {
+    event.preventDefault();
+    return;
+  }
+  draggedId.value = issue.id;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", String(issue.id));
+}
+
+function onDragEnter(status) {
+  if (frozen.value || draggedId.value == null) return;
+  dragOverStatus.value = status;
+}
+
+function onDragLeave(status) {
+  if (dragOverStatus.value === status) {
+    dragOverStatus.value = null;
+  }
+}
+
+async function onDrop(event, newStatus) {
+  dragOverStatus.value = null;
+
+  const id = draggedId.value;
+  draggedId.value = null;
+  if (frozen.value || id == null) return;
+
+  const issue = issues.value.find((i) => i.id === id);
+  if (!issue || issue.status === newStatus) return;
+
+  frozen.value = true;
+  actionError.value = null;
+  try {
+    const res = await fetch(`/api/issues/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.message || `${res.status} ${res.statusText}`);
+    }
+    await reloadIssues();
+  } catch (e) {
+    actionError.value = e.message;
+  } finally {
+    frozen.value = false;
+  }
+}
 </script>
 
 <template>
@@ -72,13 +158,18 @@ async function toggleExpanded(id) {
     <h1 class="mb-6 text-2xl font-semibold text-gray-900">Issues</h1>
 
     <p v-if="error" class="text-red-600">Failed to load issues: {{ error }}</p>
+    <p v-if="actionError" class="mb-4 text-sm text-red-600">{{ actionError }}</p>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
       <section
         v-for="col in columns"
         :key="col.status"
-        class="flex flex-col rounded-lg border border-gray-200 border-t-4 bg-gray-50"
-        :class="col.accent"
+        class="flex flex-col rounded-lg border border-gray-200 border-t-4 bg-gray-50 transition-colors"
+        :class="[col.accent, dragOverStatus === col.status ? 'bg-blue-50 ring-2 ring-inset ring-blue-300' : '']"
+        @dragover.prevent
+        @dragenter.prevent="onDragEnter(col.status)"
+        @dragleave="onDragLeave(col.status)"
+        @drop="onDrop($event, col.status)"
       >
         <header class="flex items-center justify-between px-4 py-3">
           <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">
@@ -91,7 +182,8 @@ async function toggleExpanded(id) {
             <button
               v-if="col.status === 'open'"
               type="button"
-              class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+              class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              :disabled="frozen"
               @click="showNewIssueModal = true"
             >
               + Add
@@ -99,14 +191,33 @@ async function toggleExpanded(id) {
           </div>
         </header>
 
-        <div class="flex flex-col gap-3 px-3 pb-3">
+        <div class="flex min-h-16 flex-col gap-3 px-3 pb-3">
           <article
             v-for="issue in issuesByStatus[col.status]"
             :key="issue.id"
+            :draggable="!frozen"
             class="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            :class="{ 'opacity-50': draggedId === issue.id }"
+            @dragstart="onDragStart($event, issue)"
+            @dragend="draggedId = null"
             @click="toggleExpanded(issue.id)"
           >
-            <div class="mb-2 text-xs font-mono text-gray-400">#{{ issue.id }}</div>
+            <div class="mb-2 flex items-center justify-between">
+              <span class="font-mono text-xs text-gray-400">#{{ issue.id }}</span>
+              <button
+                type="button"
+                class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                :disabled="frozen"
+                title="Edit issue"
+                @click.stop="openEdit(issue)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
+                  />
+                </svg>
+              </button>
+            </div>
             <h3 class="font-medium text-gray-900">{{ issue.title }}</h3>
             <p v-if="issue.description" class="mt-2 line-clamp-3 text-sm text-gray-500">
               {{ issue.description }}
@@ -149,5 +260,24 @@ async function toggleExpanded(id) {
       @close="showNewIssueModal = false"
       @created="onIssueCreated"
     />
+
+    <EditIssueModal
+      v-if="editingIssueId !== null"
+      :issue-id="editingIssueId"
+      @close="closeEdit"
+      @updated="onIssueUpdated"
+      @freeze="frozen = $event"
+    />
+
+    <div v-if="frozen" class="fixed inset-0 z-40 flex items-center justify-center bg-white/50">
+      <svg class="h-10 w-10 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    </div>
   </main>
 </template>

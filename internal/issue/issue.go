@@ -2,6 +2,7 @@
 package issue
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
+
+// ErrNotFound is returned by Get, Update, and UpdateStatus when no issue
+// with the given id exists.
+var ErrNotFound = errors.New("issue not found")
 
 // Issue holds the fields needed to render an issue TOML file.
 type Issue struct {
@@ -28,6 +33,20 @@ type NewInput struct {
 	Description string
 	Subtasks    []string
 }
+
+// UpdateInput holds the user-editable fields of an issue, as submitted by
+// the web UI's edit modal.
+type UpdateInput struct {
+	Title           string
+	Description     string
+	Status          string
+	AssignedTo      string
+	Subtasks        []Subtask
+	ResolutionNotes string
+}
+
+// validStatuses are the allowed values for an issue's status field.
+var validStatuses = map[string]bool{"open": true, "in-progress": true, "done": true}
 
 // New builds a fresh, open Issue from user input, filling in the fields
 // that are set automatically (status, created_at, completed_at).
@@ -160,11 +179,14 @@ type Subtask struct {
 // Detail holds the full set of fields for a single issue, including its
 // subtasks.
 type Detail struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Path        string    `json:"path"`
-	Subtasks    []Subtask `json:"subtasks"`
+	ID              int       `json:"id"`
+	Title           string    `json:"title"`
+	Status          string    `json:"status"`
+	AssignedTo      string    `json:"assigned_to"`
+	Description     string    `json:"description"`
+	Path            string    `json:"path"`
+	Subtasks        []Subtask `json:"subtasks"`
+	ResolutionNotes string    `json:"resolution_notes"`
 }
 
 // LoadDetail reads the full TOML file at path and returns its id, title,
@@ -182,10 +204,13 @@ func LoadDetail(path string) (Detail, error) {
 	sort.Slice(subtasks, func(i, j int) bool { return subtasks[i].Text < subtasks[j].Text })
 
 	return Detail{
-		ID:          doc.Issue.ID,
-		Title:       doc.Issue.Title,
-		Description: doc.Details.Description,
-		Path:        path,
-		Subtasks:    subtasks,
+		ID:              doc.Issue.ID,
+		Title:           doc.Issue.Title,
+		Status:          doc.Issue.Status,
+		AssignedTo:      doc.Issue.AssignedTo,
+		Description:     doc.Details.Description,
+		Path:            path,
+		Subtasks:        subtasks,
+		ResolutionNotes: doc.Resolution.Notes,
 	}, nil
 }
