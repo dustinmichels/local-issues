@@ -233,6 +233,21 @@ func Get(issuesDir string, id int) (Detail, error) {
 	return LoadDetail(path)
 }
 
+// Delete removes the issue file with the given id from issuesDir or its
+// done subdirectory.
+func Delete(issuesDir string, id int) error {
+	path, err := findIssuePath(issuesDir, id)
+	if err != nil {
+		return err
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("removing %s: %w", path, err)
+	}
+
+	return nil
+}
+
 // UpdateStatus sets the status of the issue with the given id, updating
 // completed_at accordingly, and rewrites its file in place without moving
 // it. It returns the issue's updated summary.

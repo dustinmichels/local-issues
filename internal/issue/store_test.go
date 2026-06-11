@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -491,6 +492,73 @@ func TestCreateRequiresTitle(t *testing.T) {
 
 	if _, err := Create(NewInput{Title: "  ", Description: "desc"}); err == nil {
 		t.Error("expected error for blank title, got nil")
+	}
+}
+
+func TestDelete(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(issuesDir, FileName(1))
+	if err := Delete(issuesDir, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("expected %s to be removed, stat err = %v", path, err)
+	}
+}
+
+func TestDeleteFromDoneDir(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := Finish(issuesDir, 1, "done")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Delete(issuesDir, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("expected %s to be removed, stat err = %v", path, err)
+	}
+}
+
+func TestDeleteMissingIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Delete(issuesDir, 1); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Delete() err = %v, want ErrNotFound", err)
 	}
 }
 

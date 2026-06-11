@@ -17,6 +17,9 @@ li create -t "Title" -d "Description" \
 # list all issues
 li list
 
+# filter issues by keyword
+li list | grep -i "documentation"
+
 # list issues with a given status (open, in-progress, done)
 li list --status open
 

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { nextTick, onMounted, ref } from "vue";
 
 const props = defineProps({
   issueId: { type: Number, required: true },
@@ -17,6 +17,7 @@ const description = ref("");
 const status = ref("open");
 const assignedTo = ref("");
 const subtasks = ref([]);
+const subtaskInputs = ref([]);
 const resolutionNotes = ref("");
 
 onMounted(async () => {
@@ -44,6 +45,13 @@ function addSubtask() {
 
 function removeSubtask(index) {
   subtasks.value.splice(index, 1);
+}
+
+function onSubtaskEnter(index) {
+  subtasks.value.splice(index + 1, 0, { text: "", done: false });
+  nextTick(() => {
+    subtaskInputs.value[index + 1]?.focus();
+  });
 }
 
 async function submit() {
@@ -157,11 +165,13 @@ async function submit() {
                 class="h-4 w-4 shrink-0 rounded border-gray-300 disabled:opacity-50"
               />
               <input
+                :ref="(el) => (subtaskInputs[index] = el)"
                 v-model="subtask.text"
                 type="text"
                 :disabled="submitting"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none disabled:opacity-50"
                 placeholder="Subtask"
+                @keydown.enter.prevent="onSubtaskEnter(index)"
               />
               <button
                 type="button"

@@ -1,11 +1,12 @@
 <script setup>
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 const emit = defineEmits(["close", "created"]);
 
 const title = ref("");
 const description = ref("");
 const subtasks = ref([""]);
+const subtaskInputs = ref([]);
 const submitting = ref(false);
 const error = ref(null);
 
@@ -15,6 +16,13 @@ function addSubtask() {
 
 function removeSubtask(index) {
   subtasks.value.splice(index, 1);
+}
+
+function onSubtaskEnter(index) {
+  subtasks.value.splice(index + 1, 0, "");
+  nextTick(() => {
+    subtaskInputs.value[index + 1]?.focus();
+  });
 }
 
 async function submit() {
@@ -84,10 +92,12 @@ async function submit() {
           <div class="flex flex-col gap-2">
             <div v-for="(_, index) in subtasks" :key="index" class="flex gap-2">
               <input
+                :ref="(el) => (subtaskInputs[index] = el)"
                 v-model="subtasks[index]"
                 type="text"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                 placeholder="Subtask"
+                @keydown.enter.prevent="onSubtaskEnter(index)"
               />
               <button
                 type="button"

@@ -24,13 +24,59 @@ const columns = [
   { status: "done", label: "Done", accent: "border-t-green-400", badge: "bg-green-100 text-green-800" },
 ];
 
+const filterOptions = [
+  { key: "created-today", label: "Created: Today" },
+  { key: "completed-today", label: "Completed: Today" },
+  { key: "created-week", label: "Created: This Week" },
+  { key: "completed-week", label: "Completed: This Week" },
+];
+
+const activeFilter = ref(null);
+
+function isToday(value) {
+  const d = new Date(value);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function isThisWeek(value) {
+  const d = new Date(value);
+  const now = new Date();
+  // Week starts on Sunday.
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  return d >= startOfWeek;
+}
+
+const filteredIssues = computed(() => {
+  switch (activeFilter.value) {
+    case "created-today":
+      return issues.value.filter((i) => isToday(i.created_at));
+    case "completed-today":
+      return issues.value.filter((i) => i.completed_at && isToday(i.completed_at));
+    case "created-week":
+      return issues.value.filter((i) => isThisWeek(i.created_at));
+    case "completed-week":
+      return issues.value.filter((i) => i.completed_at && isThisWeek(i.completed_at));
+    default:
+      return issues.value;
+  }
+});
+
 const issuesByStatus = computed(() => {
   const groups = Object.fromEntries(columns.map((c) => [c.status, []]));
-  for (const issue of issues.value) {
+  for (const issue of filteredIssues.value) {
     (groups[issue.status] ?? (groups[issue.status] = [])).push(issue);
   }
   return groups;
 });
+
+function toggleFilter(key) {
+  activeFilter.value = activeFilter.value === key ? null : key;
+}
 
 async function reloadIssues() {
   const res = await fetch("/api/issues");
@@ -86,6 +132,29 @@ function openEdit(issue) {
 
 function closeEdit() {
   editingIssueId.value = null;
+}
+
+async function deleteIssue(issue) {
+  if (frozen.value) return;
+  if (!window.confirm(`Delete issue #${issue.id} "${issue.title}"? This cannot be undone.`)) {
+    return;
+  }
+
+  frozen.value = true;
+  actionError.value = null;
+  try {
+    const res = await fetch(`/api/issues/${issue.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.message || `${res.status} ${res.statusText}`);
+    }
+    if (expandedId.value === issue.id) expandedId.value = null;
+    await reloadIssues();
+  } catch (e) {
+    actionError.value = e.message;
+  } finally {
+    frozen.value = false;
+  }
 }
 
 async function onIssueUpdated() {
@@ -155,7 +224,24 @@ async function onDrop(event, newStatus) {
 
 <template>
   <main class="mx-auto max-w-6xl p-6">
-    <h1 class="mb-6 text-2xl font-semibold text-gray-900">Issues</h1>
+    <h1 class="mb-4 text-2xl font-semibold text-gray-900">Issues</h1>
+
+    <div class="mb-6 flex flex-wrap gap-2">
+      <button
+        v-for="f in filterOptions"
+        :key="f.key"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+        :class="
+          activeFilter === f.key
+            ? 'border-blue-600 bg-blue-600 text-white'
+            : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+        "
+        @click="toggleFilter(f.key)"
+      >
+        {{ f.label }}
+      </button>
+    </div>
 
     <p v-if="error" class="text-red-600">Failed to load issues: {{ error }}</p>
     <p v-if="actionError" class="mb-4 text-sm text-red-600">{{ actionError }}</p>
@@ -204,19 +290,36 @@ async function onDrop(event, newStatus) {
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="font-mono text-xs text-gray-400">#{{ issue.id }}</span>
-              <button
-                type="button"
-                class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
-                :disabled="frozen"
-                title="Edit issue"
-                @click.stop="openEdit(issue)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
-                  />
-                </svg>
-              </button>
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                  :disabled="frozen"
+                  title="Edit issue"
+                  @click.stop="openEdit(issue)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  :disabled="frozen"
+                  title="Delete issue"
+                  @click.stop="deleteIssue(issue)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fill-rule="evenodd"
+                      d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.808a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
             <h3 class="font-medium text-gray-900">{{ issue.title }}</h3>
             <p v-if="issue.description" class="mt-2 line-clamp-3 text-sm text-gray-500">

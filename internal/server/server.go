@@ -122,6 +122,19 @@ func New(issuesDir string) (http.Handler, error) {
 		return c.JSON(http.StatusOK, detail)
 	})
 
+	e.DELETE("/api/issues/:id", func(c *echo.Context) error {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid issue id")
+		}
+
+		if err := issue.Delete(issuesDir, id); err != nil {
+			return issueError(err)
+		}
+
+		return c.NoContent(http.StatusNoContent)
+	})
+
 	e.POST("/api/issues", func(c *echo.Context) error {
 		var req createIssueRequest
 		if err := c.Bind(&req); err != nil {

@@ -176,6 +176,17 @@ type Subtask struct {
 	Done bool   `json:"done"`
 }
 
+// parseSubtasks converts a [subtasks] table into a slice of Subtask sorted
+// by text.
+func parseSubtasks(table map[string]bool) []Subtask {
+	subtasks := make([]Subtask, 0, len(table))
+	for text, done := range table {
+		subtasks = append(subtasks, Subtask{Text: text, Done: done})
+	}
+	sort.Slice(subtasks, func(i, j int) bool { return subtasks[i].Text < subtasks[j].Text })
+	return subtasks
+}
+
 // Detail holds the full set of fields for a single issue, including its
 // subtasks.
 type Detail struct {
@@ -197,12 +208,6 @@ func LoadDetail(path string) (Detail, error) {
 		return Detail{}, fmt.Errorf("decoding %s: %w", path, err)
 	}
 
-	subtasks := make([]Subtask, 0, len(doc.Subtasks))
-	for text, done := range doc.Subtasks {
-		subtasks = append(subtasks, Subtask{Text: text, Done: done})
-	}
-	sort.Slice(subtasks, func(i, j int) bool { return subtasks[i].Text < subtasks[j].Text })
-
 	return Detail{
 		ID:              doc.Issue.ID,
 		Title:           doc.Issue.Title,
@@ -210,7 +215,7 @@ func LoadDetail(path string) (Detail, error) {
 		AssignedTo:      doc.Issue.AssignedTo,
 		Description:     doc.Details.Description,
 		Path:            path,
-		Subtasks:        subtasks,
+		Subtasks:        parseSubtasks(doc.Subtasks),
 		ResolutionNotes: doc.Resolution.Notes,
 	}, nil
 }

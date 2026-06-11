@@ -34,7 +34,7 @@ var listCmd = &cobra.Command{
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 		defer w.Flush()
 
-		fmt.Fprintln(w, "ID\tTITLE\tDESCRIPTION\tPATH")
+		fmt.Fprintln(w, "ID\tSTATUS\tTITLE\tDESCRIPTION\tPATH")
 		for _, s := range summaries {
 			if listStatus != "" && s.Status != listStatus {
 				continue
@@ -45,7 +45,7 @@ var listCmd = &cobra.Command{
 				path = rel
 			}
 
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", s.ID, s.Title, s.Description, path)
+			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", s.ID, s.Status, s.Title, s.Description, path)
 		}
 
 		return nil
