@@ -13,7 +13,7 @@ layouts, plus hardcoded background colors, paddings, and font choices that
 bypassed Dawn's design tokens, breaking the Theme Settings Editor.
 """
 
-[tasks]
+[subtasks]
 "Inspect assets/style.css and eliminate !important blocks that lock visual colors and layouts" = true
 "Replace hardcoded background colors, paddings, and font choices with CSS variables referencing Dawn's design tokens (e.g. --color-background, --font-heading-family) so the Theme Settings Editor functions correctly" = true
 

@@ -112,7 +112,7 @@ func TestCreate(t *testing.T) {
 	path, err := Create(NewInput{
 		Title:       "First issue",
 		Description: "Something to do",
-		Tasks:       []string{"step one"},
+		Subtasks:    []string{"step one"},
 	})
 	if err != nil {
 		t.Fatal(err)

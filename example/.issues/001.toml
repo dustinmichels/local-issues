@@ -11,7 +11,7 @@ description = """
 Example issue. Do not delete.
 """
 
-[tasks]
+[subtasks]
 "subtask 1" = false
 "subtask 2" = false
 "subtask 3" = false

@@ -1,0 +1,13 @@
+{
+  "issue": {
+    "title": "Lazy-Loaded Background Modal (Instant)",
+    "assigned_to": ""
+  },
+  "details": {
+    "description": "Calendly currently opens via its default click handlers. Instead, lazy-load an inline Calendly widget into a hidden modal so it can be shown instantly on click rather than loading the widget on demand.\n"
+  },
+  "subtasks": [
+    "Implement Option A: create a hidden modal element on the page and initialize Calendly as an inline widget inside it (lazy-loaded after page load or on first user scroll)",
+    "Replace default Calendly click handlers with a toggle to show/hide this hidden modal, providing an instant popup experience"
+  ]
+}

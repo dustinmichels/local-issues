@@ -13,7 +13,7 @@ were near-duplicate "service row" sections. Merged into a single reusable
 services-grid.liquid section.
 """
 
-[tasks]
+[subtasks]
 "Create a single reusable section named services-grid.liquid with settings to control wrapper CSS classes, grid layout (column count), background color, and card loops" = true
 "Delete the duplicate section files: sections/first-row.liquid, sections/sec-row.liquid, sections/thd-row.liquid, sections/four-row.liquid" = true
 "Update any JSON templates referencing the old sections to point to the new consolidated section" = true

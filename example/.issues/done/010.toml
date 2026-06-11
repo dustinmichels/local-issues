@@ -13,7 +13,7 @@ Several sections asked merchants for free-text CSS class name settings
 on manual merchant input.
 """
 
-[tasks]
+[subtasks]
 "Remove merchant text input settings for CSS class names (main-class, google-section-id) from sections/custome-collection.liquid, sections/we-are.liquid, and sections/google-map.liquid (first-row.liquid already removed via Section Consolidation)" = true
 "Update HTML templates so that styling does not depend on these manual class inputs" = true
 

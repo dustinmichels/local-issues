@@ -10,24 +10,25 @@ func TestRender(t *testing.T) {
 	iss := New(16, NewInput{
 		Title:       "Example issue",
 		Description: "Example issue. Do not delete.",
-		Tasks:       []string{"subtask 1", "subtask 2", "subtask 3"},
+		Subtasks:    []string{"subtask 1", "subtask 2", "subtask 3"},
 	})
 
-	got := Render(iss)
+	got, err := Render(iss)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	want := `[issue]
 id = 16
 title = "Example issue"
-status = "open" # [open, in-progress, done]
-assigned_to = "" # [claude, antigravity, ""]
-created_at = ` + time.Now().Format("2006-01-02") + `
-completed_at = ""
+status = "open"
+assigned_to = ""
+created_at = ` + iss.CreatedAt.Format(time.RFC3339) + `
 
 [details]
-description = """
-Example issue. Do not delete.
-"""
+description = "Example issue. Do not delete."
 
-[tasks]
+[subtasks]
 "subtask 1" = false
 "subtask 2" = false
 "subtask 3" = false
@@ -41,12 +42,15 @@ notes = ""
 	}
 }
 
-func TestRenderNoTasks(t *testing.T) {
+func TestRenderNoSubtasks(t *testing.T) {
 	iss := New(1, NewInput{Title: "No subtasks", Description: "desc"})
-	got := Render(iss)
+	got, err := Render(iss)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if !strings.Contains(got, "[tasks]\n\n[resolution]") {
-		t.Errorf("expected empty [tasks] section, got:\n%s", got)
+	if !strings.Contains(got, "[subtasks]\n\n[resolution]") {
+		t.Errorf("expected empty [subtasks] section, got:\n%s", got)
 	}
 }
 
@@ -54,18 +58,21 @@ func TestRenderEscaping(t *testing.T) {
 	iss := New(1, NewInput{
 		Title:       `Fix "quoted" path\name`,
 		Description: "Has a literal \"\"\" sequence and a \\ backslash.",
-		Tasks:       []string{`"task" with \backslash`},
+		Subtasks:    []string{`"task" with \backslash`},
 	})
 
-	got := Render(iss)
+	got, err := Render(iss)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !strings.Contains(got, `title = "Fix \"quoted\" path\\name"`) {
 		t.Errorf("title not escaped correctly:\n%s", got)
 	}
-	if !strings.Contains(got, `Has a literal \"\"\" sequence and a \\ backslash.`) {
+	if !strings.Contains(got, `description = "Has a literal \"\"\" sequence and a \\ backslash."`) {
 		t.Errorf("description not escaped correctly:\n%s", got)
 	}
 	if !strings.Contains(got, `"\"task\" with \\backslash" = false`) {
-		t.Errorf("task not escaped correctly:\n%s", got)
+		t.Errorf("subtask not escaped correctly:\n%s", got)
 	}
 }

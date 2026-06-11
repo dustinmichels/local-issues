@@ -14,7 +14,7 @@ assets/custom.js), with inconsistent async/defer usage. Standardized to a
 single load path.
 """
 
-[tasks]
+[subtasks]
 "Remove inline jQuery (3.6.0) and Slick Carousel (1.8.1) CDN imports from sections/related-products.liquid" = true
 "Remove the redundant jQuery.getScript() wrapper in assets/custom.js" = true
 "Standardize to a single Slick version loaded through a single route; ensure jQuery is not loaded async while dependent scripts use defer" = true

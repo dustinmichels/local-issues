@@ -10,7 +10,7 @@ import (
 var (
 	createTitle       string
 	createDescription string
-	createTasks       []string
+	createSubtasks    []string
 )
 
 var createCmd = &cobra.Command{
@@ -20,7 +20,7 @@ var createCmd = &cobra.Command{
 		path, err := issue.Create(issue.NewInput{
 			Title:       createTitle,
 			Description: createDescription,
-			Tasks:       createTasks,
+			Subtasks:    createSubtasks,
 		})
 		if err != nil {
 			return err
@@ -35,7 +35,7 @@ func init() {
 
 	createCmd.Flags().StringVarP(&createTitle, "title", "t", "", "issue title (required)")
 	createCmd.Flags().StringVarP(&createDescription, "description", "d", "", "issue description")
-	createCmd.Flags().StringArrayVar(&createTasks, "task", nil, "a subtask (repeatable)")
+	createCmd.Flags().StringArrayVar(&createSubtasks, "subtask", nil, "a subtask (repeatable)")
 
 	createCmd.MarkFlagRequired("title")
 	createCmd.MarkFlagRequired("description")

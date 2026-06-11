@@ -13,7 +13,7 @@ codes and manual CSS class names. Standardized settings and built clean
 defaults directly into the section.
 """
 
-[tasks]
+[subtasks]
 "Standardize maps_iframe and google-section-id settings to avoid asking admins for raw iframe codes or manual CSS class names" = true
 "Build clean defaults directly in sections/google-map.liquid" = true
 

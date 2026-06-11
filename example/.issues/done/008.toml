@@ -13,7 +13,7 @@ Custom sections used unscoped <style> blocks and generic class names
 risking global style leaks across the theme.
 """
 
-[tasks]
+[subtasks]
 "Enclose style blocks in custom sections within Liquid {% style %} tags scoped to the section ID (#shopify-section-{{ section.id }})" = true
 "Scope styles for generic classes (.left-content, .right-content, .cta-button, .store-grid, .store-image) to prevent global style leaks" = true
 "Move inline CSS out of <style> blocks in Liquid sections (e.g. first-row.liquid, calendar.liquid) and load via scoped stylesheets" = true

@@ -13,7 +13,7 @@ Search elements in sections/header.liquid were hidden via
 being removed, cluttering the accessibility tree.
 """
 
-[tasks]
+[subtasks]
 "Remove search elements from sections/header.liquid instead of hiding them via .header__search { display: none !important; } in style.css" = true
 
 [resolution]

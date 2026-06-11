@@ -13,7 +13,7 @@ markup instead of Shopify's image_tag filter, missing auto-generated
 srcset/sizes attributes and lazy loading.
 """
 
-[tasks]
+[subtasks]
 "Replace static image markup in custom sections with Shopify's image_tag filter (e.g. {{ block.settings.image | image_url: width: 800 | image_tag: loading: 'lazy', class: 'custom-image-class' }}) for responsive scaling and lazy loading" = false
 
 [resolution]

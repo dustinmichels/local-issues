@@ -13,7 +13,7 @@ contained a typo, along with related references throughout templates and
 style.css.
 """
 
-[tasks]
+[subtasks]
 "Rename sections/custome-collection.liquid to sections/custom-collection.liquid" = true
 "Update its internal JSON schema name from 'Custome Collection' to 'Custom Collection'" = true
 "Correct all references to custome-collection in templates and style.css" = true

@@ -3,7 +3,6 @@ package issue
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -16,17 +15,17 @@ type Issue struct {
 	Title       string
 	Status      string
 	AssignedTo  string
-	CreatedAt   string
-	CompletedAt string
+	CreatedAt   time.Time
+	CompletedAt time.Time
 	Description string
-	Tasks       []string
+	Subtasks    []string
 }
 
 // NewInput holds the user-supplied fields for creating a new issue.
 type NewInput struct {
 	Title       string
 	Description string
-	Tasks       []string
+	Subtasks    []string
 }
 
 // New builds a fresh, open Issue from user input, filling in the fields
@@ -37,81 +36,97 @@ func New(id int, input NewInput) Issue {
 		Title:       strings.TrimSpace(input.Title),
 		Status:      "open",
 		AssignedTo:  "",
-		CreatedAt:   time.Now().Format("2006-01-02"),
-		CompletedAt: "",
+		CreatedAt:   time.Now().Truncate(time.Second),
 		Description: strings.TrimSpace(input.Description),
-		Tasks:       input.Tasks,
+		Subtasks:    input.Subtasks,
 	}
 }
 
-// Render renders an Issue as TOML matching the layout of the example
-// template (example/.issues/001.toml).
-func Render(iss Issue) string {
+// document is the on-disk TOML shape of an issue file.
+type document struct {
+	Issue      issueTable      `toml:"issue"`
+	Details    detailsTable    `toml:"details"`
+	Subtasks   map[string]bool `toml:"subtasks"`
+	Resolution resolutionTable `toml:"resolution"`
+}
+
+type issueTable struct {
+	ID          int       `toml:"id"`
+	Title       string    `toml:"title"`
+	Status      string    `toml:"status"`
+	AssignedTo  string    `toml:"assigned_to"`
+	CreatedAt   time.Time `toml:"created_at"`
+	CompletedAt time.Time `toml:"completed_at,omitempty"`
+}
+
+type detailsTable struct {
+	Description string `toml:"description"`
+}
+
+type resolutionTable struct {
+	Notes string `toml:"notes"`
+}
+
+// Render renders an Issue as TOML using the BurntSushi/toml encoder.
+func Render(iss Issue) (string, error) {
+	subtasks := make(map[string]bool, len(iss.Subtasks))
+	for _, subtask := range iss.Subtasks {
+		subtasks[subtask] = false
+	}
+
+	doc := document{
+		Issue: issueTable{
+			ID:          iss.ID,
+			Title:       iss.Title,
+			Status:      iss.Status,
+			AssignedTo:  iss.AssignedTo,
+			CreatedAt:   iss.CreatedAt,
+			CompletedAt: iss.CompletedAt,
+		},
+		Details:    detailsTable{Description: iss.Description},
+		Subtasks:   subtasks,
+		Resolution: resolutionTable{Notes: ""},
+	}
+
 	var b strings.Builder
-
-	b.WriteString("[issue]\n")
-	fmt.Fprintf(&b, "id = %d\n", iss.ID)
-	fmt.Fprintf(&b, "title = %s\n", tomlString(iss.Title))
-	fmt.Fprintf(&b, "status = %s # [open, in-progress, done]\n", tomlString(iss.Status))
-	fmt.Fprintf(&b, "assigned_to = %s # [claude, antigravity, \"\"]\n", tomlString(iss.AssignedTo))
-	fmt.Fprintf(&b, "created_at = %s\n", iss.CreatedAt)
-	fmt.Fprintf(&b, "completed_at = %s\n", tomlString(iss.CompletedAt))
-	b.WriteString("\n")
-
-	b.WriteString("[details]\n")
-	fmt.Fprintf(&b, "description = \"\"\"\n%s\n\"\"\"\n", tomlMultiline(iss.Description))
-	b.WriteString("\n")
-
-	b.WriteString("[tasks]\n")
-	for _, task := range iss.Tasks {
-		fmt.Fprintf(&b, "%s = false\n", tomlString(task))
+	enc := toml.NewEncoder(&b)
+	enc.Indent = ""
+	if err := enc.Encode(doc); err != nil {
+		return "", fmt.Errorf("encoding issue: %w", err)
 	}
-	b.WriteString("\n")
-
-	b.WriteString("[resolution]\n")
-	b.WriteString("notes = \"\"\n")
-
-	return b.String()
-}
-
-// tomlString renders s as a TOML basic (double-quoted) string.
-func tomlString(s string) string {
-	return fmt.Sprintf("%q", s)
-}
-
-// tripleQuoteRun matches runs of three or more consecutive double quotes,
-// which would otherwise be ambiguous inside a TOML multi-line basic string.
-var tripleQuoteRun = regexp.MustCompile(`"{3,}`)
-
-// tomlMultiline escapes s for use inside a TOML multi-line basic string
-// ("""..."""), escaping backslashes and any runs of 3+ double quotes.
-func tomlMultiline(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	return tripleQuoteRun.ReplaceAllStringFunc(s, func(m string) string {
-		return strings.Repeat(`\"`, len(m))
-	})
+	return b.String(), nil
 }
 
 // Summary holds the fields of an issue needed to render it as a card.
 type Summary struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Status string `json:"status"`
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Description string `json:"description"`
+	Path        string `json:"path"`
 }
 
-// LoadSummary reads the [issue] table of the TOML file at path and returns
-// its id, title, and status.
+// LoadSummary reads the [issue] and [details] tables of the TOML file at
+// path and returns its id, title, status, description, and path.
 func LoadSummary(path string) (Summary, error) {
 	var doc map[string]any
 	if _, err := toml.DecodeFile(path, &doc); err != nil {
 		return Summary{}, fmt.Errorf("decoding %s: %w", path, err)
 	}
 
-	section, _ := doc["issue"].(map[string]any)
+	issueSection, _ := doc["issue"].(map[string]any)
+	detailsSection, _ := doc["details"].(map[string]any)
 
-	id, _ := section["id"].(int64)
-	title, _ := section["title"].(string)
-	status, _ := section["status"].(string)
+	id, _ := issueSection["id"].(int64)
+	title, _ := issueSection["title"].(string)
+	status, _ := issueSection["status"].(string)
+	description, _ := detailsSection["description"].(string)
 
-	return Summary{ID: int(id), Title: title, Status: status}, nil
+	return Summary{
+		ID:          int(id),
+		Title:       title,
+		Status:      status,
+		Description: description,
+		Path:        path,
+	}, nil
 }

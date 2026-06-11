@@ -18,7 +18,7 @@ assets/ folder, then style.css renamed to style.css.liquid so Liquid filters
 work.
 """
 
-[tasks]
+[subtasks]
 "Move custom font files (e.g. Lexend-Regular.woff2) into the theme's assets/ folder" = false
 "In assets/style.css, reference fonts using Liquid filters instead of absolute store URLs (e.g. url(\"{{ 'Lexend-Regular.woff2' | asset_url }}\"))" = false
 

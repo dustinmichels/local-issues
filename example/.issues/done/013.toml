@@ -12,7 +12,7 @@ The class name `.sec-collcetion-section` contained a typo throughout
 assets/style.css and custom sections.
 """
 
-[tasks]
+[subtasks]
 "Correct .sec-collcetion-section to .sec-collection-section in assets/style.css and all custom sections" = true
 
 [resolution]

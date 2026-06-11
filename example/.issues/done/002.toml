@@ -14,7 +14,7 @@ URL setting required merchants to paste raw widget HTML. Consolidate to a
 single global load and a structured setting.
 """
 
-[tasks]
+[subtasks]
 "Remove the duplicate Calendly script/stylesheet import in layout/theme.liquid (currently imported twice)" = true
 "Remove inline <script> tags referencing widget.js and <link> tags referencing widget.css from custom Liquid code (e.g. page.repair.json, main-product.liquid); load once globally" = true
 "Replace the html setting type for the booking URL with a structured text setting and write the widget container HTML dynamically in Liquid" = true

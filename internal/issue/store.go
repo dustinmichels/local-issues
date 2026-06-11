@@ -112,7 +112,12 @@ func Create(input NewInput) (string, error) {
 		return "", fmt.Errorf("issue file already exists: %s", path)
 	}
 
-	if err := os.WriteFile(path, []byte(Render(iss)), 0o644); err != nil {
+	data, err := Render(iss)
+	if err != nil {
+		return "", err
+	}
+
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		return "", fmt.Errorf("writing %s: %w", path, err)
 	}
 
