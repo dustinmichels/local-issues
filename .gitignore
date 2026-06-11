@@ -1,6 +1,10 @@
+# my own issues dir
 .issues/
 
+# bin
 /local-issues
+/li
+
 /web/node_modules
 /web/dist/*
 !/web/dist/.gitkeep

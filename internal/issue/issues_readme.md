@@ -1,8 +1,7 @@
 # Issues
 
-This directory is managed by [local-issues](https://github.com/dustinmichels/local-issues),
-a CLI for tracking issues as local TOML files. It is designed to be read and
-edited by both humans and coding agents.
+Local issue tracking, using the [li](https://github.com/dustinmichels/local-issues) CLI.
+It is designed to be read and edited by both humans and coding agents.
 
 ## Layout
 
@@ -32,35 +31,33 @@ What needs to happen, and why.
 notes = ""
 ```
 
-`status` and `assigned_to` can be edited directly, e.g. to claim an issue
-or mark it "in-progress". `local-issues finish` sets `status = "done"`,
-fills in `completed_at`, and records `resolution.notes`.
+When a task is completed, add `completed_at` and record `resolution.notes`.
 
 ## CLI commands
 
-Run from anywhere inside the project; `local-issues` walks up from the
+Run from anywhere inside the project; `li` walks up from the
 current directory to find `.issues/`, the same way git finds `.git/`.
 
 ```sh
 # create a new open issue
-local-issues create -t "Title" -d "Description" \
+li create -t "Title" -d "Description" \
   --subtask "step one" --subtask "step two"
 
 # list all issues
-local-issues list
+li list
 
 # list issues with a given status (open, in-progress, done)
-local-issues list --status open
+li list --status open
 
 # show the title, description, path, and subtasks for one issue
-local-issues get <id>
+li get <id>
 
 # mark an issue done, record resolution notes, and move it to done/
-local-issues finish <id> --notes "Resolution notes"
+li finish <id> --notes "Resolution notes"
 
 # move any issues already marked done into done/
-local-issues cleanup
+li cleanup
 
 # serve a local web UI for browsing issues
-local-issues serve
+li serve
 ```

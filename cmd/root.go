@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "local-issues",
+	Use:   "li",
 	Short: "Track issues locally as TOML files",
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BINARY="local-issues"
+BINARY="li"
 DEST="$HOME/dev/bin"
 
 echo "Building $BINARY..."
