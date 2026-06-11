@@ -3,6 +3,7 @@ package issue
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -99,34 +100,92 @@ func Render(iss Issue) (string, error) {
 
 // Summary holds the fields of an issue needed to render it as a card.
 type Summary struct {
-	ID          int    `json:"id"`
-	Title       string `json:"title"`
-	Status      string `json:"status"`
-	Description string `json:"description"`
-	Path        string `json:"path"`
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	Status      string     `json:"status"`
+	Description string     `json:"description"`
+	Path        string     `json:"path"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+}
+
+// summaryDoc is a lenient view of the [issue]/[details] tables used by
+// LoadSummary. created_at and completed_at are decoded as `any` so that a
+// hand- or agent-edited file with a malformed value (e.g. a stray
+// completed_at = "" on an open issue) doesn't fail the whole decode.
+type summaryDoc struct {
+	Issue struct {
+		ID          int    `toml:"id"`
+		Title       string `toml:"title"`
+		Status      string `toml:"status"`
+		CreatedAt   any    `toml:"created_at"`
+		CompletedAt any    `toml:"completed_at"`
+	} `toml:"issue"`
+	Details detailsTable `toml:"details"`
 }
 
 // LoadSummary reads the [issue] and [details] tables of the TOML file at
-// path and returns its id, title, status, description, and path.
+// path and returns its id, title, status, description, path, created_at,
+// and (if set) completed_at.
 func LoadSummary(path string) (Summary, error) {
-	var doc map[string]any
+	var doc summaryDoc
 	if _, err := toml.DecodeFile(path, &doc); err != nil {
 		return Summary{}, fmt.Errorf("decoding %s: %w", path, err)
 	}
 
-	issueSection, _ := doc["issue"].(map[string]any)
-	detailsSection, _ := doc["details"].(map[string]any)
+	createdAt, _ := doc.Issue.CreatedAt.(time.Time)
 
-	id, _ := issueSection["id"].(int64)
-	title, _ := issueSection["title"].(string)
-	status, _ := issueSection["status"].(string)
-	description, _ := detailsSection["description"].(string)
+	var completedAt *time.Time
+	if t, ok := doc.Issue.CompletedAt.(time.Time); ok {
+		completedAt = &t
+	}
 
 	return Summary{
-		ID:          int(id),
-		Title:       title,
-		Status:      status,
-		Description: description,
+		ID:          doc.Issue.ID,
+		Title:       doc.Issue.Title,
+		Status:      doc.Issue.Status,
+		Description: doc.Details.Description,
 		Path:        path,
+		CreatedAt:   createdAt,
+		CompletedAt: completedAt,
+	}, nil
+}
+
+// Subtask holds a single subtask's text and completion status.
+type Subtask struct {
+	Text string `json:"text"`
+	Done bool   `json:"done"`
+}
+
+// Detail holds the full set of fields for a single issue, including its
+// subtasks.
+type Detail struct {
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Path        string    `json:"path"`
+	Subtasks    []Subtask `json:"subtasks"`
+}
+
+// LoadDetail reads the full TOML file at path and returns its id, title,
+// description, path, and subtasks.
+func LoadDetail(path string) (Detail, error) {
+	var doc document
+	if _, err := toml.DecodeFile(path, &doc); err != nil {
+		return Detail{}, fmt.Errorf("decoding %s: %w", path, err)
+	}
+
+	subtasks := make([]Subtask, 0, len(doc.Subtasks))
+	for text, done := range doc.Subtasks {
+		subtasks = append(subtasks, Subtask{Text: text, Done: done})
+	}
+	sort.Slice(subtasks, func(i, j int) bool { return subtasks[i].Text < subtasks[j].Text })
+
+	return Detail{
+		ID:          doc.Issue.ID,
+		Title:       doc.Issue.Title,
+		Description: doc.Details.Description,
+		Path:        path,
+		Subtasks:    subtasks,
 	}, nil
 }

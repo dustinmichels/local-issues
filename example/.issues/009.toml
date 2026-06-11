@@ -4,7 +4,6 @@ title = "Fix Relative Font Asset URLs"
 status = "open" # [open, in-progress, done]
 assigned_to = "" # [claude, antigravity, ""]
 created_at = 2026-06-10
-completed_at = ""
 
 [details]
 description = """

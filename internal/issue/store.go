@@ -87,6 +87,56 @@ func FileName(id int) string {
 	return fmt.Sprintf("%03d.toml", id)
 }
 
+// exampleIssueTemplate is the content of the example issue written by
+// Init. The %s placeholder is filled with today's date in YYYY-MM-DD form.
+const exampleIssueTemplate = `[issue]
+id = 1
+title = "Example issue"
+status = "open" # [open, in-progress, done]
+assigned_to = ""
+created_at = %s
+
+[details]
+description = """
+Example issue. Do not delete.
+"""
+
+[subtasks]
+"subtask 1" = false
+"subtask 2" = false
+"subtask 3" = false
+
+[resolution]
+notes = ""
+`
+
+// Init creates a new .issues directory with its done subdirectory and an
+// example issue, and returns the path of the created directory. It returns
+// an error if the directory already exists.
+func Init() (string, error) {
+	issuesDir, err := FindDir()
+	if err != nil {
+		return "", err
+	}
+
+	if info, err := os.Stat(issuesDir); err == nil && info.IsDir() {
+		return "", fmt.Errorf("issues directory already exists: %s", issuesDir)
+	}
+
+	doneDir := filepath.Join(issuesDir, DoneDirName)
+	if err := os.MkdirAll(doneDir, 0o755); err != nil {
+		return "", fmt.Errorf("creating %s: %w", doneDir, err)
+	}
+
+	examplePath := filepath.Join(issuesDir, FileName(1))
+	data := fmt.Sprintf(exampleIssueTemplate, time.Now().Format("2006-01-02"))
+	if err := os.WriteFile(examplePath, []byte(data), 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", examplePath, err)
+	}
+
+	return issuesDir, nil
+}
+
 // Create writes a new open issue to the .issues directory and returns the
 // path of the created file.
 func Create(input NewInput) (string, error) {
@@ -125,6 +175,24 @@ func Create(input NewInput) (string, error) {
 	}
 
 	return path, nil
+}
+
+// Get loads the full detail of the issue with the given id, checking
+// issuesDir and its done subdirectory for "<id>.toml". It returns an
+// error if no issue with that id exists.
+func Get(issuesDir string, id int) (Detail, error) {
+	for _, dir := range []string{issuesDir, filepath.Join(issuesDir, DoneDirName)} {
+		path := filepath.Join(dir, FileName(id))
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return Detail{}, fmt.Errorf("checking %s: %w", path, err)
+		}
+		return LoadDetail(path)
+	}
+
+	return Detail{}, fmt.Errorf("issue %d not found", id)
 }
 
 // Finish marks the issue with the given id as done, records the

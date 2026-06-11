@@ -4,6 +4,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v5"
 
@@ -34,6 +35,20 @@ func New(issuesDir string) (http.Handler, error) {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(http.StatusOK, summaries)
+	})
+
+	e.GET("/api/issues/:id", func(c *echo.Context) error {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid issue id")
+		}
+
+		detail, err := issue.Get(issuesDir, id)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusNotFound, err.Error())
+		}
+
+		return c.JSON(http.StatusOK, detail)
 	})
 
 	e.POST("/api/issues", func(c *echo.Context) error {

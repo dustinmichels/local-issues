@@ -104,6 +104,70 @@ func TestFindDirDefaultsToCwd(t *testing.T) {
 	}
 }
 
+func TestInit(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	path, err := Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPath := filepath.Join(resolvedRoot, DirName)
+	if path != wantPath {
+		t.Errorf("Init() path = %s, want %s", path, wantPath)
+	}
+
+	if info, err := os.Stat(filepath.Join(path, DoneDirName)); err != nil || !info.IsDir() {
+		t.Errorf("expected %s to be a directory", filepath.Join(path, DoneDirName))
+	}
+
+	detail, err := Get(path, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Title != "Example issue" || detail.Description != "Example issue. Do not delete.\n" {
+		t.Errorf("Get() = %+v, unexpected fields", detail)
+	}
+
+	wantSubtasks := []string{"subtask 1", "subtask 2", "subtask 3"}
+	if len(detail.Subtasks) != len(wantSubtasks) {
+		t.Fatalf("Get() Subtasks = %+v, want %d entries", detail.Subtasks, len(wantSubtasks))
+	}
+	for i, want := range wantSubtasks {
+		if detail.Subtasks[i].Text != want || detail.Subtasks[i].Done {
+			t.Errorf("Get() Subtasks[%d] = %+v, want {%s false}", i, detail.Subtasks[i], want)
+		}
+	}
+
+	summaries, err := List(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 || summaries[0].Status != "open" {
+		t.Errorf("List() = %+v, want one open issue", summaries)
+	}
+}
+
+func TestInitAlreadyExists(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Init(); err == nil {
+		t.Error("expected error for already-initialized directory, got nil")
+	}
+}
+
 func TestCreate(t *testing.T) {
 	root := t.TempDir()
 	restore := chdir(t, root)
@@ -293,6 +357,122 @@ func TestCleanupMissingDir(t *testing.T) {
 	}
 	if len(moved) != 0 {
 		t.Errorf("Cleanup() = %v, want none", moved)
+	}
+}
+
+func TestListIncludesUnfiledDoneIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Open issue", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Create(NewInput{Title: "Done issue", Description: "desc"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mark issue 2 as done without moving it, as if it were finished by hand.
+	path := filepath.Join(issuesDir, FileName(2))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := strings.Replace(string(data), `status = "open"`, `status = "done"`, 1)
+	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	summaries, err := List(issuesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(summaries) != 2 {
+		t.Fatalf("List() = %+v, want 2 summaries", summaries)
+	}
+	if summaries[1].ID != 2 || summaries[1].Status != "done" || summaries[1].Path != path {
+		t.Errorf("List()[1] = %+v, want id 2, status done, path %s", summaries[1], path)
+	}
+}
+
+func TestGet(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{
+		Title:       "Fix bug",
+		Description: "Something is broken",
+		Subtasks:    []string{"step one"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Get(issuesDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got.ID != 1 || got.Title != "Fix bug" || got.Description != "Something is broken" {
+		t.Errorf("Get() = %+v, unexpected fields", got)
+	}
+	if len(got.Subtasks) != 1 || got.Subtasks[0].Text != "step one" || got.Subtasks[0].Done {
+		t.Errorf("Get() Subtasks = %+v, want [{step one false}]", got.Subtasks)
+	}
+}
+
+func TestGetFindsDoneIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	if _, err := Create(NewInput{Title: "Fix bug", Description: "Something is broken"}); err != nil {
+		t.Fatal(err)
+	}
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Finish(issuesDir, 1, "done"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Get(issuesDir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantPath := filepath.Join(issuesDir, DoneDirName, FileName(1))
+	if got.Path != wantPath {
+		t.Errorf("Get() Path = %s, want %s", got.Path, wantPath)
+	}
+}
+
+func TestGetMissingIssue(t *testing.T) {
+	root := t.TempDir()
+	restore := chdir(t, root)
+	defer restore()
+
+	issuesDir, err := FindDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Get(issuesDir, 1); err == nil {
+		t.Error("expected error for missing issue, got nil")
 	}
 }
 

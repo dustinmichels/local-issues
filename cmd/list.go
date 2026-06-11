@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listOpenOnly bool
+var listStatus string
 
 var listCmd = &cobra.Command{
 	Use:   "list",
@@ -36,7 +36,7 @@ var listCmd = &cobra.Command{
 
 		fmt.Fprintln(w, "ID\tTITLE\tDESCRIPTION\tPATH")
 		for _, s := range summaries {
-			if listOpenOnly && s.Status != "open" {
+			if listStatus != "" && s.Status != listStatus {
 				continue
 			}
 
@@ -55,5 +55,5 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 
-	listCmd.Flags().BoolVar(&listOpenOnly, "open", false, "only list open issues")
+	listCmd.Flags().StringVar(&listStatus, "status", "", "only list issues with this status (open, in-progress, done)")
 }
