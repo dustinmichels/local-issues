@@ -7,7 +7,7 @@ More sophisticated than a tasks.md, but still based on editing local files.
 ## Usage
 
 ```sh
-# create a .issues directory with an example issue
+# create a .issues directory with a README and an example issue
 local-issues init
 
 # create a new issue

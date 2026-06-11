@@ -1,6 +1,7 @@
 package issue
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -110,9 +111,16 @@ Example issue. Do not delete.
 notes = ""
 `
 
-// Init creates a new .issues directory with its done subdirectory and an
-// example issue, and returns the path of the created directory. It returns
-// an error if the directory already exists.
+// issuesReadme is the content of the README.md written by Init,
+// documenting the .issues directory layout and the local-issues CLI.
+//
+//go:embed issues_readme.md
+var issuesReadme string
+
+// Init creates a new .issues directory with its done subdirectory, a
+// README documenting the CLI, and an example issue, and returns the path
+// of the created directory. It returns an error if the directory already
+// exists.
 func Init() (string, error) {
 	issuesDir, err := FindDir()
 	if err != nil {
@@ -126,6 +134,11 @@ func Init() (string, error) {
 	doneDir := filepath.Join(issuesDir, DoneDirName)
 	if err := os.MkdirAll(doneDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating %s: %w", doneDir, err)
+	}
+
+	readmePath := filepath.Join(issuesDir, "README.md")
+	if err := os.WriteFile(readmePath, []byte(issuesReadme), 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", readmePath, err)
 	}
 
 	examplePath := filepath.Join(issuesDir, FileName(1))

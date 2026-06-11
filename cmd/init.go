@@ -9,7 +9,7 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create a new .issues directory with an example issue",
+	Short: "Create a new .issues directory with a README and an example issue",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path, err := issue.Init()
 		if err != nil {

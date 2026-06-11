@@ -127,6 +127,14 @@ func TestInit(t *testing.T) {
 		t.Errorf("expected %s to be a directory", filepath.Join(path, DoneDirName))
 	}
 
+	readme, err := os.ReadFile(filepath.Join(path, "README.md"))
+	if err != nil {
+		t.Fatalf("expected README.md to be created: %v", err)
+	}
+	if !strings.Contains(string(readme), "local-issues") {
+		t.Errorf("README.md missing expected content:\n%s", readme)
+	}
+
 	detail, err := Get(path, 1)
 	if err != nil {
 		t.Fatal(err)
