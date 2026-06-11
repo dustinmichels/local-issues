@@ -39,3 +39,13 @@ li serve --port 8080
 # serve the bundled example issues, to try out the web UI
 li demo
 ```
+
+## Setup
+
+```sh
+# put the binary on my PATH
+./scripts/build.sh
+
+# install the skill to the agents directory
+./scripts/install_skill.sh
+```
